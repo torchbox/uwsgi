@@ -1183,11 +1183,11 @@ class uConf(object):
         uver_min = '0'
         uver_rev = '0'
 
-        if len(uver_dots) > 2:
-            uver_min = uver_dots[2]
+#        if len(uver_dots) > 2:
+#            uver_min = uver_dots[2]
 
-        if len(uver_dots) > 3:
-            uver_rev = uver_dots[3]
+#        if len(uver_dots) > 3:
+#            uver_rev = uver_dots[3]
 
         self.cflags.append('-DUWSGI_VERSION_BASE="' + uver_base + '"')
         self.cflags.append('-DUWSGI_VERSION_MAJOR="' + uver_maj + '"')
