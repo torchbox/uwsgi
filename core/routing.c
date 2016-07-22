@@ -1809,7 +1809,6 @@ static int uwsgi_route_condition_ipv6in(struct wsgi_request *wsgi_req, struct uw
 #undef IP6_LEN
 #undef IP6PFX_LEN
 #undef IP6_U32LEN
->>>>>>> master
 }
 
 static int uwsgi_route_condition_contains(struct wsgi_request *wsgi_req, struct uwsgi_route *ur) {
