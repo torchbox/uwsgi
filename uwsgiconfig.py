@@ -1,6 +1,6 @@
 # uWSGI build system
 
-uwsgi_version = '2.1.4T-dev'
+uwsgi_version = '2.1.5T-dev-fcgiauth'
 
 import os
 import re
