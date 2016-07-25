@@ -320,6 +320,44 @@ void uwsgi_apply_cap(cap_value_t * cap, int caps_count) {
 }
 #endif
 
+#ifdef CLONE_NEWUSER
+static int setgroups_deny(void) {
+	int map;
+
+	if ((map = open("/proc/self/setgroups", O_WRONLY)) == -1) {
+		uwsgi_log("/proc/self/setgroups: open: %s\n", strerror(errno));
+		return -1;
+	}
+	if (write(map, "deny", 4) == -1) {
+		uwsgi_log("/proc/self/setgroups: write: %s\n", strerror(errno));
+		close(map);
+		return -1;
+	}
+	close(map);
+	return 0;
+}
+
+static int id_map(const char *which, int child, int parent) {
+	char f[PATH_MAX + 1];
+	char buf[256];
+	int map;
+
+	snprintf(f, sizeof(f), "/proc/self/%s", which);
+	if ((map = open(f, O_WRONLY)) == -1) {
+		uwsgi_log("%s: open: %s\n", f, strerror(errno));
+		return -1;
+	}
+	snprintf(buf, sizeof(buf), "%u %u 1", child, parent);
+	if (write(map, buf, strlen(buf)) == -1) {
+		uwsgi_log("%s: write (%u, %u): %s\n", f, parent, child, strerror(errno));
+		close(map);
+		return -1;
+	}
+	close(map);
+	return 0;
+}
+#endif
+
 // drop privileges (as root)
 /*
 
@@ -329,8 +367,10 @@ void uwsgi_apply_cap(cap_value_t * cap, int caps_count) {
 */
 void uwsgi_as_root() {
 
+	int myuid = getuid();
+	int mygid = getgid();
 
-	if (getuid() > 0)
+	if (getuid() > 0 && !(uwsgi.unshare & CLONE_NEWUSER))
 		goto nonroot;
 
 #ifndef __RUMP__
@@ -352,13 +392,43 @@ void uwsgi_as_root() {
 			uwsgi_log("[linux-namespace] applied unshare() mask: %d\n", uwsgi.unshare);
 		}
 
-#ifdef CLONE_NEWUSER
-		if (uwsgi.unshare & CLONE_NEWUSER) {
-			if (setuid(0)) {
-				uwsgi_error("uwsgi_as_root()/setuid(0)");
-				exit(1);
-			}
+#ifdef CLONE_NEWPID
+	if (uwsgi.unshare & CLONE_NEWPID) {
+		uwsgi_log("re-fork()ing...\n");
+		pid_t pid = fork();
+		if (pid < 0) {
+			uwsgi_error("fork()");
+			exit(1);
 		}
+		if (pid > 0) {
+			// block all signals
+			sigset_t smask;
+			sigfillset(&smask);
+			sigprocmask(SIG_BLOCK, &smask, NULL);
+			int status;
+			if (waitpid(pid, &status, 0) < 0) {
+				uwsgi_error("waitpid()");
+			}
+			_exit(0);
+		}
+	}
+#endif
+#ifdef CLONE_NEWUSER
+	if (uwsgi.unshare & CLONE_NEWUSER) {
+		if (setgroups_deny() == -1) {
+			uwsgi_log("cannot deny setgroups\n");
+			exit(1);
+		}
+		if (id_map("uid_map", 0, myuid) == -1) {
+			uwsgi_log("cannot map uid\n");
+			exit(1);
+		}
+		if (id_map("gid_map", 0, mygid) == -1) {
+			uwsgi_log("cannot map gid\n");
+			exit(1);
+		}
+		uwsgi_log("set uid_map\n");
+	}
 #endif
 		in_jail = 1;
 	}
@@ -646,6 +716,18 @@ void uwsgi_as_root() {
 			uwsgi_log("[linux-namespace] applied unshare() mask: %d\n", uwsgi.unshare2);
 		}
 #ifdef CLONE_NEWUSER
+	if (uwsgi.unshare2 & CLONE_NEWUSER) {
+		if (id_map("uid_map", 0, uwsgi.uid) == -1) {
+			uwsgi_log("cannot map uid\n");
+			exit(1);
+		}
+		if (id_map("gid_map", 0, uwsgi.gid) == -1) {
+			uwsgi_log("cannot map gid\n");
+			exit(1);
+		}
+	}
+#endif
+#ifdef CLONE_NEWUSER_NO
 		if (uwsgi.unshare2 & CLONE_NEWUSER) {
 			if (setuid(0)) {
 				uwsgi_error("uwsgi_as_root()/setuid(0)");
@@ -676,7 +758,6 @@ void uwsgi_as_root() {
 			_exit(0);
 		}
 	}
-
 
 	struct uwsgi_string_list *usl;
 	uwsgi_foreach(usl, uwsgi.wait_for_interface) {
