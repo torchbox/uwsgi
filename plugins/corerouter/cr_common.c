@@ -115,16 +115,16 @@ void uwsgi_corerouter_manage_subscription(struct uwsgi_corerouter *ucr, int id, 
 
 	int i;
 	struct uwsgi_subscribe_req usr;
-	char bbuf[4096];
+	char bbuf[16384];
 	ssize_t len = -1;
 
 	memset(&usr, 0, sizeof(struct uwsgi_subscribe_req));
 
 	if (uwsgi.subscriptions_use_credentials) {
-		len = uwsgi_recv_cred2(ugs->fd, bbuf, 4096, &usr.pid, &usr.uid, &usr.gid);
+		len = uwsgi_recv_cred2(ugs->fd, bbuf, sizeof(bbuf), &usr.pid, &usr.uid, &usr.gid);
 	}
 	else {
-		len = recv(ugs->fd, bbuf, 4096, 0);
+		len = recv(ugs->fd, bbuf, sizeof(bbuf), 0);
 	}
 	if (len > 0) {
 		uwsgi_hooked_parse(bbuf + 4, len - 4, corerouter_manage_subscription, &usr);
@@ -236,9 +236,9 @@ void uwsgi_corerouter_manage_internal_subscription(struct uwsgi_corerouter *ucr,
 
 
 	struct uwsgi_subscribe_req usr;
-	char bbuf[4096];
+	char bbuf[16384];
 
-	ssize_t len = recv(fd, bbuf, 4096, 0);
+	ssize_t len = recv(fd, bbuf, sizeof(bbuf), 0);
 	if (len > 0) {
 		memset(&usr, 0, sizeof(struct uwsgi_subscribe_req));
 		uwsgi_hooked_parse(bbuf + 4, len - 4, corerouter_manage_subscription, &usr);
