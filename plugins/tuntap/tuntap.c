@@ -285,9 +285,6 @@ void uwsgi_tuntap_router_loop(int id, void *arg) {
 						ptr[2] = (uint8_t) ((pktsize >> 8) & 0xff);
 						ptr[3] = 0;
 						uttp->write_buf_pktsize+= pktsize+4;
-						if (uwsgi_tuntap_peer_enqueue(uttr, uttp)) {
-							uwsgi_tuntap_peer_destroy(uttr, uttp);
-						}
 
 						if (uwsgi_tuntap_peer_enqueue(uttr, uttp)) {
 							struct uwsgi_tuntap_peer *p = uttp->next;
