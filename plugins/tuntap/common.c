@@ -226,16 +226,20 @@ int uwsgi_tuntap_peer_dequeue(struct uwsgi_tuntap_router *uttr, struct uwsgi_tun
 			uttp->header_pos = 0;
 			uttp->buf_pos = 0;
 
-			if (!is_router) goto enqueue;
-
 			// a rule block
-			if (uttp->header[3] == 1) {
+			if (is_router && uttp->header[3] == 1) {
 				if (uttp->rules) free(uttp->rules);
 				uttp->rules = uwsgi_malloc(uttp->buf_pktsize);
 				memcpy(uttp->rules, uttp->buf, uttp->buf_pktsize);
 				uttp->rules_cnt = uttp->buf_pktsize / sizeof(struct uwsgi_tuntap_peer_rule);
 				return 0;
 			}
+
+			/* Only consider IPv4 packets, we do not support IPv6 */
+			if (((uttp->buf[0] & 0xF0) >> 4) != 4)
+				return 0;
+
+			if (!is_router) goto enqueue;
 
 			if (uwsgi_tuntap_firewall_check(utt.fw_out, uttp->buf, uttp->buf_pktsize)) return 0;
 
