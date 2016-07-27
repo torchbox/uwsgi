@@ -247,7 +247,7 @@ int uwsgi_tuntap_peer_dequeue(struct uwsgi_tuntap_router *uttr, struct uwsgi_tun
 				uttp->addr = *src_ip;
 				// drop invalid ip addresses
 				if (!uttp->addr)
-					return -1;
+					return 0;
 
 				if (uwsgi_tuntap_register_addr(uttr, uttp)) {
 					return -1;

@@ -1,6 +1,6 @@
 # uWSGI build system
 
-uwsgi_version = '2.1.9T-tbx-fcgiauth-nsfix'
+uwsgi_version = '2.1.10T-tbx-fcgiauth-nsfix'
 
 import os
 import re
