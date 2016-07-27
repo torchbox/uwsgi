@@ -269,6 +269,26 @@ void uwsgi_tuntap_router_loop(int id, void *arg) {
 				if (*dst_ip == (uint32_t)-1 || *dst_ip == 0) { /* broadcast */
 					struct uwsgi_tuntap_peer *uttp = uttr->peers_head;
 					while (uttp) {
+						if (uwsgi_tuntap_peer_rules_check(uttr, uttp, uttr->buf, rlen, 0)) continue;
+
+						// check for full write buffer
+						if (uttp->write_buf_pktsize + 4 + rlen > utt.buffer_size) {
+							uttp->dropped++;
+							continue;
+						}
+
+						uint16_t pktsize = rlen;
+						char *ptr = uttp->write_buf + uttp->write_buf_pktsize;
+						memcpy(ptr + 4, uttr->buf, rlen);
+						ptr[0] = 0;
+						ptr[1] = (uint8_t) (pktsize & 0xff);
+						ptr[2] = (uint8_t) ((pktsize >> 8) & 0xff);
+						ptr[3] = 0;
+						uttp->write_buf_pktsize+= pktsize+4;
+						if (uwsgi_tuntap_peer_enqueue(uttr, uttp)) {
+							uwsgi_tuntap_peer_destroy(uttr, uttp);
+						}
+
 						if (uwsgi_tuntap_peer_enqueue(uttr, uttp)) {
 							struct uwsgi_tuntap_peer *p = uttp->next;
 							uwsgi_tuntap_peer_destroy(uttr, uttp);
