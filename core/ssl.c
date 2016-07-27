@@ -181,7 +181,7 @@ end:
 char *uwsgi_write_pem_to_file(char *name, char *buf, size_t len, char *ext) {
 	if (!uwsgi.ssl_tmp_dir) return NULL;
 	char *filename = uwsgi_concat4(uwsgi.ssl_tmp_dir, "/", name, ext);
-	int fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR);
+	int fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
 	if (fd < 0) {
 		uwsgi_error_open(filename);
 		free(filename);
