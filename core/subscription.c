@@ -1079,18 +1079,51 @@ void uwsgi_subscribe2(char *arg, uint8_t cmd) {
 	}
 
         if (s2_sni_key) {
-                if (uwsgi_buffer_append_keyval(ub, "sni_key", 7, s2_sni_key, strlen(s2_sni_key)))
-                        goto end;
+		if (s2_sni_key[0] == '@') {
+			char *keydata;
+			if ((keydata = uwsgi_simple_file_read(s2_sni_key + 1)) == NULL)
+				goto end;
+			if (uwsgi_buffer_append_keyval(ub, "sni_key", 7, keydata, strlen(keydata))) {
+				free(keydata);
+				goto end;
+			}
+			free(keydata);
+		} else {
+			if (uwsgi_buffer_append_keyval(ub, "sni_key", 7, s2_sni_key, strlen(s2_sni_key)))
+				goto end;
+		}
         }
 
         if (s2_sni_crt) {
-                if (uwsgi_buffer_append_keyval(ub, "sni_crt", 7, s2_sni_crt, strlen(s2_sni_crt)))
-                        goto end;
+		if (s2_sni_crt[0] == '@') {
+			char *crtdata;
+			if ((crtdata = uwsgi_simple_file_read(s2_sni_crt + 1)) == NULL)
+				goto end;
+			if (uwsgi_buffer_append_keyval(ub, "sni_crt", 7, crtdata, strlen(crtdata))) {
+				free(crtdata);
+				goto end;
+			}
+			free(crtdata);
+		} else {
+			if (uwsgi_buffer_append_keyval(ub, "sni_crt", 7, s2_sni_crt, strlen(s2_sni_crt)))
+				goto end;
+		}
         }
 
         if (s2_sni_ca) {
-                if (uwsgi_buffer_append_keyval(ub, "sni_ca", 6, s2_sni_ca, strlen(s2_sni_ca)))
-                        goto end;
+		if (s2_sni_ca[0] == '@') {
+			char *cadata;
+			if ((cadata = uwsgi_simple_file_read(s2_sni_ca + 1)) == NULL)
+				goto end;
+			if (uwsgi_buffer_append_keyval(ub, "sni_ca", 6, cadata, strlen(cadata))) {
+				free(cadata);
+				goto end;
+			}
+			free(cadata);
+		} else {
+			if (uwsgi_buffer_append_keyval(ub, "sni_ca", 6, s2_sni_ca, strlen(s2_sni_ca)))
+				goto end;
+		}
         }
 
 	if (s2_proto) {
