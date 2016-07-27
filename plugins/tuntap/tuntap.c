@@ -265,6 +265,21 @@ void uwsgi_tuntap_router_loop(int id, void *arg) {
 
 
 				uint32_t *dst_ip = (uint32_t *) & uttr->buf[16];
+
+				if (*dst_ip == (uint32_t)-1 || *dst_ip == 0) { /* broadcast */
+					struct uwsgi_tuntap_peer *uttp = uttr->peers_head;
+					while (uttp) {
+						if (uwsgi_tuntap_peer_enqueue(uttr, uttp)) {
+							struct uwsgi_tuntap_peer *p = uttp->next;
+							uwsgi_tuntap_peer_destroy(uttr, uttp);
+							uttp = p;
+							continue;
+						}
+						uttp = uttp->next;
+					}
+					continue;
+				}
+
 				struct uwsgi_tuntap_peer *uttp = uwsgi_tuntap_peer_get_by_addr(uttr, *dst_ip);
 				if (!uttp)
 					continue;
