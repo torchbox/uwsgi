@@ -6,7 +6,7 @@ FROM alpine:3.4
 
 ENV LANG C.UTF-8
 
-COPY . /usr/src/uswgi
+COPY . /usr/src/uwsgi
 
 RUN apk add --no-cache ca-certificates mailcap
 
