@@ -364,9 +364,13 @@ extern int pivot_root(const char *new_root, const char *put_old);
 #define UWSGI_CACHE_FLAG_FIXEXPIRE	1 << 9
 
 #ifdef UWSGI_SSL
-#include "openssl/conf.h"
-#include "openssl/ssl.h"
+#include <openssl/conf.h>
+#include <openssl/ssl.h>
 #include <openssl/err.h>
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#define UWSGI_SSL_SESSION_CACHE
+#endif
 #endif
 
 #include <glob.h>
@@ -1166,6 +1170,9 @@ struct uwsgi_spooler {
 	struct uwsgi_spooler *next;
 
 	time_t last_task_managed;
+
+	time_t cursed_at;
+	time_t no_mercy_at;
 };
 
 #ifdef UWSGI_ROUTING
@@ -1694,6 +1701,7 @@ struct uwsgi_instance_status {
 	int workers_reloading;
 	int is_cheap;
 	int is_cleaning;
+	int dying_for_need_app;
 };
 
 struct uwsgi_configurator {
@@ -2855,6 +2863,12 @@ struct uwsgi_server {
 	int subscription_clear_on_shutdown;
 
 	int subscription_tolerance_inactive;
+
+	struct uwsgi_string_list *touch_mules_reload;
+	struct uwsgi_string_list *touch_spoolers_reload;
+	int spooler_reload_mercy;
+
+	int skip_atexit_teardown;
 };
 
 struct uwsgi_rpc {
@@ -3069,6 +3083,8 @@ struct uwsgi_worker {
 	int accepting;
 
 	char name[0xff];
+
+	int close_sockets;
 };
 
 
@@ -4602,6 +4618,7 @@ int uwsgi_response_add_date(struct wsgi_request *, char *, uint16_t, uint64_t);
 
 const char *uwsgi_http_status_msg(char *, uint16_t *);
 int uwsgi_stats_dump_vars(struct uwsgi_stats *, struct uwsgi_core *);
+int uwsgi_stats_dump_request(struct uwsgi_stats *, struct uwsgi_core *);
 
 int uwsgi_contains_n(char *, size_t, char *, size_t);
 
@@ -4814,6 +4831,8 @@ void uwsgi_log_do_rotate(char *, char *, off_t, int);
 void uwsgi_log_rotate();
 void uwsgi_log_reopen();
 void uwsgi_reload_workers();
+void uwsgi_reload_mules();
+void uwsgi_reload_spoolers();
 void uwsgi_chain_reload();
 void uwsgi_refork_master();
 void uwsgi_update_pidfiles();

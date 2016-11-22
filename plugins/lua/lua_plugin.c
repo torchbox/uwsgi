@@ -369,7 +369,7 @@ static int uwsgi_api_log(lua_State *L) {
 		if (ub) {
 			if (!uwsgi_buffer_byte(ub, 0))
 				ulua_log("%s%s%s", uwsgi_lua_log_tostring(L, 1, NULL), buff, ub->buf);
-				uwsgi_buffer_destroy(ub);
+			uwsgi_buffer_destroy(ub);
 		} else {
 			ulua_log("%s%s", uwsgi_lua_log_tostring(L, 1, NULL), buff);
 		}
@@ -3466,6 +3466,10 @@ static uint64_t uwsgi_lua_rpc(void * func, uint8_t argc, char **argv, uint16_t a
 
 	if (!sv && uwsgi_lua_metatable_tostring_protected(L, -1) > 0) {
 		sv = lua_tolstring(L, -1, &sl);
+	}
+	if (!sv) {
+		lua_pop(L, 2);
+		return 0;
 	}
 
 	if (sl > 0) {

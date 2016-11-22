@@ -98,13 +98,16 @@ static int create_server_socket(int domain, int type) {
 		}
 	}
 
-	if (type == SOCK_STREAM) {
+	if (type == SOCK_STREAM || type == SOCK_DGRAM) {
 		if (uwsgi.so_sndbuf) {
 			socklen_t sndbuf = (socklen_t) uwsgi.so_sndbuf;
 			if (setsockopt(serverfd, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(socklen_t)) < 0) {
 				uwsgi_error("SO_SNDBUF setsockopt()");
 				uwsgi_nuclear_blast();
 				return -1;
+			}
+			else {
+				uwsgi_log("successfully set SO_SNDBUF to %u for socket fd %d\n", sndbuf, serverfd);
 			}
 		}
 
@@ -114,6 +117,9 @@ static int create_server_socket(int domain, int type) {
 				uwsgi_error("SO_RCVBUF setsockopt()");
 				uwsgi_nuclear_blast();
 				return -1;
+			}
+			else {
+				uwsgi_log("successfully set SO_RCVBUF to %u for socket fd %d\n", rcvbuf, serverfd);
 			}
 		}
 
@@ -1259,8 +1265,10 @@ void uwsgi_close_all_sockets() {
         struct uwsgi_socket *uwsgi_sock = uwsgi.sockets;
 
         while (uwsgi_sock) {
-                if (uwsgi_sock->bound)
+                if (uwsgi_sock->bound) {
+                        shutdown(uwsgi_sock->fd, SHUT_RDWR);
                         close(uwsgi_sock->fd);
+                }
                 uwsgi_sock = uwsgi_sock->next;
         }
 }
@@ -1957,14 +1965,15 @@ int uwsgi_socket_from_addr(union uwsgi_sockaddr *addr, socklen_t *len, char *add
 	int type;
 	char *colon = strchr(addrtxt, ':');
 
+#ifdef AF_INET6
+	if (*addrtxt == '[' && colon && colon[-1] == ']') {
+		type = AF_INET6;
+	}
+	else
+#endif
 	if (colon) {
 		type = AF_INET;
 	}
-#ifdef AF_INET6
-	else if (*addrtxt == '[' && colon && colon[-1] == ']') {
-		type = AF_INET6;
-	}
-#endif
 	else {
 		type = AF_UNIX;
 	}
