@@ -493,6 +493,10 @@ int uwsgi_real_file_serve(struct wsgi_request *wsgi_req, char *real_filename, si
 	uwsgi_add_expires_uri(wsgi_req, st);
 #endif
 
+	if (uwsgi.honour_range) {
+		if (uwsgi_response_add_header(wsgi_req, "Accept-Ranges", 13, "bytes", 5)) return -1;
+	}
+
 	if (use_gzip) {
 		if (uwsgi_response_add_header(wsgi_req, "Content-Encoding", 16, "gzip", 4)) return -1;
 	}
