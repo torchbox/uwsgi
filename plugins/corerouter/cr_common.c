@@ -115,7 +115,7 @@ void uwsgi_corerouter_manage_subscription(struct uwsgi_corerouter *ucr, int id, 
 
 	int i;
 	struct uwsgi_subscribe_req usr;
-	char bbuf[16384];
+	char bbuf[4096];
 	ssize_t len = -1;
 
 	memset(&usr, 0, sizeof(struct uwsgi_subscribe_req));
@@ -236,7 +236,7 @@ void uwsgi_corerouter_manage_internal_subscription(struct uwsgi_corerouter *ucr,
 
 
 	struct uwsgi_subscribe_req usr;
-	char bbuf[16384];
+	char bbuf[4096];
 
 	ssize_t len = recv(fd, bbuf, sizeof(bbuf), 0);
 	if (len > 0) {
