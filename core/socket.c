@@ -1266,7 +1266,9 @@ void uwsgi_close_all_sockets() {
 
         while (uwsgi_sock) {
                 if (uwsgi_sock->bound) {
+#if 0
                         shutdown(uwsgi_sock->fd, SHUT_RDWR);
+#endif
                         close(uwsgi_sock->fd);
                 }
                 uwsgi_sock = uwsgi_sock->next;
