@@ -3084,7 +3084,7 @@ struct uwsgi_worker {
 
 	char name[0xff];
 
-	int close_sockets;
+	int shutdown_sockets;
 };
 
 
@@ -3608,6 +3608,7 @@ struct uwsgi_socket *uwsgi_del_socket(struct uwsgi_socket *);
 
 void uwsgi_close_all_sockets(void);
 void uwsgi_close_all_unshared_sockets(void);
+void uwsgi_shutdown_all_sockets(void);
 
 struct uwsgi_string_list *uwsgi_string_new_list(struct uwsgi_string_list **, char *);
 #ifdef UWSGI_PCRE
