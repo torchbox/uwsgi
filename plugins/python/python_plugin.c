@@ -1087,17 +1087,16 @@ void *uwsgi_python_create_env_holy(struct wsgi_request *wsgi_req, struct uwsgi_a
 	Py_INCREF(up.wsgi_spitout);
 	PyTuple_SetItem((PyObject *)wsgi_req->async_args, 1, up.wsgi_spitout);
 	PyObject *env = PyDict_New();
-	Py_INCREF(env);
 	return env;
 }
 
 void uwsgi_python_destroy_env_holy(struct wsgi_request *wsgi_req) {
-	Py_DECREF((PyObject *)wsgi_req->async_environ);
-	Py_DECREF((PyObject *) wsgi_req->async_args);
 	// in non-multithread modes, we set uwsgi.env incrementing the refcount of the environ
 	if (uwsgi.threads < 2) {
 		Py_DECREF((PyObject *)wsgi_req->async_environ);
 	}
+	Py_DECREF((PyObject *) wsgi_req->async_args);
+	Py_DECREF((PyObject *)wsgi_req->async_environ);
 }
 
 
@@ -1902,23 +1901,45 @@ int uwsgi_python_mule_msg(char *message, size_t len) {
 	UWSGI_GET_GIL;
 
 	PyObject *mule_msg_hook = PyDict_GetItemString(up.embedded_dict, "mule_msg_hook");
-        if (!mule_msg_hook) {
-                // ignore
-                UWSGI_RELEASE_GIL;
-                return 0;
-        }
-
-	PyObject *pyargs = PyTuple_New(1);
-        PyTuple_SetItem(pyargs, 0, PyString_FromStringAndSize(message, len));
-
-        PyObject *ret = python_call(mule_msg_hook, pyargs, 0, NULL);
-	Py_DECREF(pyargs);
-	if (ret) {
-		Py_DECREF(ret);
+	PyObject *mule_msg_extra_hooks = PyDict_GetItemString(up.embedded_dict, "mule_msg_extra_hooks");
+	if (!mule_msg_hook && !mule_msg_extra_hooks) {
+		// ignore
+		UWSGI_RELEASE_GIL;
+		return 0;
 	}
 
-	if (PyErr_Occurred())
-                PyErr_Print();
+	PyObject *pyargs = PyTuple_New(1);
+	PyTuple_SetItem(pyargs, 0, PyString_FromStringAndSize(message, len));
+
+	// Maintain compatibility with old hook plugin behavior
+	if (mule_msg_hook) {
+		PyObject *ret = python_call(mule_msg_hook, pyargs, 0, NULL);
+
+		if (ret) {
+			Py_DECREF(ret);
+		}
+
+		if (PyErr_Occurred())
+			PyErr_Print();
+	}
+
+	if (mule_msg_extra_hooks) {
+		Py_ssize_t listlen = PyList_Size(mule_msg_extra_hooks);
+		Py_ssize_t idx = 0;
+		for (; idx < listlen; idx++) {
+			PyObject *hook = PyList_GET_ITEM(mule_msg_extra_hooks, idx);
+			PyObject *ret = python_call(hook, pyargs, 0, NULL);
+
+			if (ret) {
+				Py_DECREF(ret);
+			}
+
+			if (PyErr_Occurred())
+				PyErr_Print();
+		}
+	}
+
+	Py_DECREF(pyargs);
 
 	UWSGI_RELEASE_GIL;
 	return 1;
@@ -1973,7 +1994,7 @@ static ssize_t uwsgi_python_logger(struct uwsgi_logger *ul, char *message, size_
 		PyObject *py_getLogger_args = NULL;
 		if (ul->arg) {
 			py_getLogger_args = PyTuple_New(1);
-			PyTuple_SetItem(py_getLogger_args, 0, PyString_FromString(ul->arg));
+			PyTuple_SetItem(py_getLogger_args, 0, UWSGI_PYFROMSTRING(ul->arg));
 		}
                 ul->data = (void *) PyEval_CallObject(py_getLogger, py_getLogger_args);
                 if (PyErr_Occurred()) {

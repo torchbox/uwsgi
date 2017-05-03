@@ -1375,7 +1375,8 @@ struct wsgi_request {
 	char *appid;
 	uint16_t appid_len;
 
-	//this is big enough to contain sockaddr_in
+	// This structure should not be used any more
+	// in favor of the union client_addr at the end
 	struct sockaddr_un c_addr;
 	int c_len;
 
@@ -1631,6 +1632,13 @@ struct wsgi_request {
 	int64_t range_from;
 	int64_t range_to;
 
+	// source address union, deprecates c_addr
+	union address {
+		struct sockaddr_in sin;
+		struct sockaddr_in6 sin6;
+		struct sockaddr_un sun;
+	} client_addr;
+
 };
 
 
@@ -1648,6 +1656,7 @@ struct uwsgi_timer {
 	int id;
 	int registered;
 	uint8_t sig;
+	long nsvalue;
 };
 
 struct uwsgi_signal_rb_timer {
@@ -2814,10 +2823,20 @@ struct uwsgi_server {
 	int wait_for_socket_timeout;
 	int mem_collector_freq;
 
-	// uWSGI 2.1
-	char *fork_socket;
+	// uWSGI 2.0.14
+	struct uwsgi_string_list *touch_mules_reload;
+	struct uwsgi_string_list *touch_spoolers_reload;
+	int spooler_reload_mercy;
+	int skip_atexit_teardown;
+
+	// uWSGI 2.0.15
 	int new_argc;
 	char **new_argv;
+	// signal for else
+	int logic_opt_if_failed;
+	
+	// uWSGI 2.1
+	char *fork_socket;
 	char *emperor_use_fork_server;
 	struct uwsgi_string_list *vassal_fork_base;
 	struct uwsgi_string_list *emperor_collect_attributes;
@@ -2864,16 +2883,13 @@ struct uwsgi_server {
 
 	int subscription_tolerance_inactive;
 
-	struct uwsgi_string_list *touch_mules_reload;
-	struct uwsgi_string_list *touch_spoolers_reload;
-	int spooler_reload_mercy;
-
-	int skip_atexit_teardown;
-
 #ifdef __linux__
 	rlim_t reload_on_uss;
 	rlim_t reload_on_pss;
 #endif
+
+	int mule_msg_recv_size;
+	char *mule_msg_recv_buf;
 };
 
 struct uwsgi_rpc {
@@ -3386,6 +3402,7 @@ int event_queue_interesting_fd_is_read(void *, int);
 int event_queue_interesting_fd_is_write(void *, int);
 
 int event_queue_add_timer(int, int *, int);
+int event_queue_add_timer_hr(int, int *, int, long);
 struct uwsgi_timer *event_queue_ack_timer(int);
 
 int event_queue_add_file_monitor(int, char *, int *);
@@ -3395,6 +3412,7 @@ struct uwsgi_fmon *event_queue_ack_file_monitor(int, int);
 int uwsgi_register_signal(uint8_t, char *, void *, uint8_t);
 int uwsgi_add_file_monitor(uint8_t, char *);
 int uwsgi_add_timer(uint8_t, int);
+int uwsgi_add_timer_hr(uint8_t, int, long);
 int uwsgi_signal_add_rb_timer(uint8_t, int, int);
 int uwsgi_signal_handler(struct wsgi_request *, uint8_t);
 
@@ -3809,7 +3827,7 @@ struct uwsgi_subscribe_slot {
 
 };
 
-void mule_send_msg(int, char *, size_t);
+int mule_send_msg(int, char *, size_t);
 
 uint32_t djb33x_hash(char *, uint64_t);
 void create_signal_pipe(int *);
@@ -4002,6 +4020,7 @@ int uwsgi_logic_opt_if_hostname(char *, char *);
 int uwsgi_logic_opt_if_not_hostname(char *, char *);
 int uwsgi_logic_opt_if_hostname_match(char *, char *);
 int uwsgi_logic_opt_if_not_hostname_match(char *, char *);
+int uwsgi_logic_opt_else(char *, char *);
 
 
 void uwsgi_opt_resolve(char *, char *, void *);
